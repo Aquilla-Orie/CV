@@ -60,9 +60,135 @@
 					<p><bd>January 3, 2014</bd></p>
 					<h4>An Image Post</h4>
 					<p><img class="img-responsive" src="assets/img/blog01.jpg" alt=""></p>
-					<p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.</p>
-					<p>It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged.</p>
-					<p>It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+					<p><b>Jan 1, Day 1</b></p>
+					<p>I created a new project, set up the character and character movement. I had to setup both for pc and android because my phone does not connect easily to my laptop, hence increasing overhead during testing as I have to build and send files back and forth.
+					I had some issues calculating the velocity of the ball accurately. I used the distance value obtained from the player's swipe to calculate the velocity but for some reason the distance value was unusually large. I had to divide the distance value by 100 and then clamp it between 0 and 15 for more accurate results.
+					I also added a trail renderer and played around with it for a bit until I decided I was satisfied with what I had.
+					Finally I performed a little refactoring and clean up of my code and called it a day.</p>
+
+
+					<p><b>Jan 3, Day 2</b></p>
+					<p>	I began fairly late today at about 1:45PM. I began by adding a taget angler to the ball. The target angler is just a fancy keyword for the trajectory trail that shows the player what direction the ball is facing while the player swipes before firing the ball. I tried a naive method of assigning a game object as the angler and then changing the scale and position accordigly as the player holds down to swipe. Surely enough this method didn't work as it should. I have to find another method.
+					While searching for a solution, I came across this video on YouTube (https://www.youtube.com/watch?v=RpeRnlLgmv8) that explained how to draw trajectory lines from 2D objects. As I was watching the video, I noticed somethings that were wrong with the implementation of my shooting mechanic and had to do some quick adjustments(Basically copied part of his code ;)) I ended up doing away with rotating the character seperately before shooting and just doing them together. It works better now.
+					I was able to successfully implement(copy) the target angler. I also did my best to check out and understand the math behind all the jargons I have implemented (https://tech.spaceapegames.com/2016/07/05/trajectory-prediction-with-unity-physics/).
+					After getting a better understanding of what I had done, I played around with the draw function and eventually reduced the number of draw steps, improving performance and also giving me a much better feel and look.
+					I also added a fade effect to the angler right after the ball has been fired. Looks cool to me :D
+					I added a counter that restricts how many times the player can jump per time. This timer resets everytime the player collides with an anchor.
+					I also added the ability of the player to collide with anchors. The player is set to the position of the anchor and the x and y positions of the Rigidbody are frozen to prevent the player from falling. Setting the position was to prevent the player sticking to the edges of the anchors and exhibiting weird behaviors like clipping between the anchor.
+					There is a slight issue though, the player cannot jump backwards. Weird stuff happening.
+					I also added an extra platform type(platform), that allows the player bounce and rest a bit on. Similar to the anchor type but does not restrict positional movement.
+					I was able to implement a crude anchor spawning system that takes into account the height and width of the screen, generates a random x value between 0 and width and a random y value between a min and max (optimal distances between two anchors). A refernce transform is obtained and the y value is added to the y position of the reference transform, which coupled with the x value becomes the position of the anchor. Then I just run this over a few iterations to produce some more. I'm a bit tired and can't test this out to see exactly how crude/clever this is. It also has some issues. I will revisit it tomorrow.</p>
+
+
+					<p><b>Jan 4, Day 3</b></p>
+					<p>Slept all day today. Finally got up to do some work though, at about 8pm. Started where I left off yesterday - anchor spawning.
+					I eventually found out why I was having some issues yesterday(the anchors spawning off screen). It is because I was using the actual screen bounds rather than the screen bounds in world perspective. A quick conversion fixed that - 
+					Vector2 screenBounds = Camera.main.ScreenToWorldPoint(new Vector2(width, height));. I then  passed the screenBounds' x and y coordinates accordigly. Works better now, a bit of tweaking would still be done.
+					After tweaking for a while, I added a buffer that pads the anchors away from the edges of the screen. I also added screen origin vector which is basically Vector2.zero in the world space. This was particularly useful in the spawning and I also plan to use it when setting up the initial platform which would be at the bottom of the screen.
+					While testing, I found an issue. If the ball is shot ever so slightly from an anchor, it seems to get stuck on top the anchor without making any collisions with it. The player is then unable to move. My idea for solving this is to set a lower threshold for the swipe. This would make sure that any swipe below that threshold is ignored, consequently fixing the issue. This seems to be working. I compared the direction vector's magnitude(sqrt(x*x + y*y), or direction.magnitude if you will) with the minimum threshold value and this seems to be giving me the sufficient results. I had to play around with various threshold values before arriving at a seemingly nice one. A threshold value of 10 seems to work just well.
+					Next, making the camera follow the player. Parenting the camera to the player is just a nighmare, I have to find a better way. Wait, Cinemachine! This is much better. It still needs some improvements though.
+					Now on to cleanup - removing all past anchors and setting losing condition. I want to make it such that once the player passes an anchor, it is destroyed and if the player should fall out of bounds of the screen, a gameover.
+					I tried using the built-in OnBecameVisible() - shows "STILL ALIVE" and OnBecameInvisible() - shows "GAMEOVER" but I was getting this weird behaviour where it showed "GAMEOVER" even while the ball was still on screen.
+					<br><br>
+					    private void OnBecameInvisible()<br>
+					    {<br>
+					        displayText.text = $"GAMEOVER";<br>
+					    }<br>
+					    private void OnBecameVisible()<br>
+					    {<br>
+					        displayText.text = $"";<br>
+					    }<br>
+					<br>
+					Odd.
+					I ended up having to calculate the ball's position with respect to the screen bounds and use that to check if the ball is no longer within the visible area of the screen. This works better now.<br><br>
+					  public void CheckIfPlayerVisible()<br>
+						{<br>
+						    Vector2 pos = transform.position;<br>
+						    Vector2 screenBounds = Camera.main.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));<br>
+						    Vector2 screenOrigins = Camera.main.ScreenToWorldPoint(Vector2.zero);<br>
+
+						    if (pos.x > screenBounds.x || pos.x < screenOrigins.x)<br>
+						    {<br>
+						        displayText.text = $"GAMEOVER";<br>
+						    }<br>
+						    if (pos.y > screenBounds.y || pos.y < screenOrigins.y)<br>
+						    {<br>
+						        displayText.text = $"GAMEOVER";<br>
+						    }<br>
+						    else<br>
+						    {<br>
+						        displayText.text = $"STILL ALIVE";<br>
+						    }<br>
+						}<br><br>
+					Now unto the anchors.
+						public void CheckIfAnchorVisible()
+					    {
+					        Vector2 pos = transform.position;
+					        GetScreenBounds();
+
+					        if (pos.y > screenBounds.y || pos.y < screenOrigins.y)
+					        {
+					            SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+					            spriteRenderer.color = Color.red;
+					        }
+					        else
+					        {
+					            SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+					            spriteRenderer.color = Color.green;
+					        }
+					    }
+
+					    private void GetScreenBounds()
+					    {
+					        screenBounds = Camera.main.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));
+					        screenOrigins = Camera.main.ScreenToWorldPoint(Vector2.zero);
+					    }
+					This works perfectly. Maybe not so perfect, I noticed something. If I destroy all anchors off-screen then those anchors spawned in advance would be destroyed also. I can fix this by putting a check on all anchors that have been seen and if they have been seen and then leave the area, they get destroyed. Else, they remain.
+					Now, it works perfectly.
+					Added a check for the last spawned anchor each set. When that anchor comes into view, new anchor points are spawned.
+					Played around with the cinemachine settings and made some adjustments.
+					Also removed the camera follow and lookAt target when the player falls off-screen. Visual Studio was not recognizing the Cinemachine namespace and gave a red sqigly. I tried searching for a solution for almost half an hour with no luck. It doesn't seem to give a compile error in Unity so, I'll just use it like that.
+					It's 12am, still quite early but I want to watch a movie and chill a bit. I asked Ahmed(UI Designer) to start making the UI mockups for the game and Angel(2D Artist) to make the background art and player skins and effects.
+					Finally, I made a build for my phone, to playtest and also send to the team. That would be all for today.</p>
+
+
+					<p><b>Jan 5, Day 4</b></p>
+					<p>It is 3:30pm and I just had an interesting day. Ate a lot actually. On to the coin and coin spawner. At first I wanted to repeat the same thing I did with the anchor spawning but I imagined a lot of inconsistencies with that method. For one, the coins could spawn in areas far from the anchors, sometimes possibly in unreachable areas from certain anchors, making it unfair to the player.
+					My plan is to sit back and find a way to spawn the coins with respect to the anchor spawner, spawning coins between anchors and within reachable distances. I do not intend to make it easy and predictable but rather random, possible to obtain yet fair to the player.
+					While I take sometime away to think, I made some UI mockup sketches of how the menus would be.
+					Left the project for hours and now it is 8:45pm. I want to do something, no matter how little but not overwork myself. I just had a hefty meal, maybe that's why I'm this lazy but anyways, I intend on making a gameover and main menu UI while I wait for the actual UI elements to be designed.
+					I was able to create a game over panel with a working restart button. I added the main menu button but I didn't eventually add a main menu. With that, I call it a day at 9:16pm.</p>
+
+
+					<p><b>Jan 6, Day 5</b></p>
+					<p>Early birds they say; it's 8:00am now. Well, not so early but still...
+					Although I already have all the mechanics written down and I have what to do this morning(Coin spawner), I feel kinda lazy.
+					The list of core features still left to be implemented are:
+						<ul>
+							<li>Implement coins that player can pick up.</li>
+							<li>Spawn mechanic for the coins.</li>
+							<li>Score system that consists of distance covered and coins collected.</li>
+							<li>Shop/Customization system.</li>
+							<li>Account and score syncing.</li>
+							<li>Ads.</li>
+						</ul>	
+						After spending close to an hour sitting, staring at my screen and playing 8 Ball Pool on my phone, I finally have the needed strength to begin working on the coin spawner.</p>
+
+
+					<p><b>Jan 7, Day 6</b></p>
+					<p>Only the coin was made yesterday. I need to do better.
+					Well, today is another day. 1:22am, time to begin.
+					Now unto the spawning mechanic. I had an idea; have the anchor spawner intermittently calculate whether or not to spawn a coin, if so, it calls the coins spawner to work. It could also take parameters like the position of the previously spawned anchor and possibly the next spawned anchor. Although it would not always be tight fitted between those two points and can sometimes deviate from this pattern, it mostly would be aligned based off the anchor points. Time to get to work.
+					2:20am - Seems to work, I noticed an issue though. Restarting the level takes too long and when that eventually happens, the game gives a null reference exception, neither the anchors or the coins load. This might be because I am not properly destroying all the objects, or something else. This is a big part of the game and cannot go ignored. I need to optimize this.
+					This issue has resulted in me adding a new item to the list of core mechanics to implement.
+					    *Clear screen and reconstruct.
+					Just a fancy way of saying "restart the game without taking 20 seconds to load and then eventually crashing."
+					So, 3:30pm, a solution has emerged. What happened betwwen 2:20am and now? I slept back.
+					Initially, I intended to subscribe every anchor and coin into a list upon creation and the unsubscribe them on destruction. Apart from cleanup though I have no other use for the list, which would just be another piece of memory I would have to manage. Instead, I chose between the lesser of the two evils; find all anchors and coins upon destruction, log them in a temporary list, then clear them up one by one.
+					Although this trade of speed for space would be quite negligible, it is easier to manage on my end. I am sure this would fix the issue.
+					5:01pm - Just spent the past 1hr 30mins implementing spaghetti code that gave me even worse results. Cute.
+					It is all good though, because, that spaghetti code showed what the issue was; I was assigning the restart function dynamically. I'm not so sure why that made it so slow but it works now, along side some minor tweaks.
+					The tweak was changing the Start() in my CoinSpawner to a custom Init() so that I can determine the order of execution manually. I then call this Init() right before I set up the AchorSpawner so as to avoid the NullRefernceException when the CoinSpawner is being referenced by the AnchorSpawner before creation. I am happy.</p>
 					<br>
 					<p><bt>TAGS: <a href="#">Wordpress</a> - <a href="#">Web Design</a></bt></p>
 					<hr>
